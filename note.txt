@@ -1,0 +1,48 @@
+-- Should implement discount for senior citizen above 80
+
+Index(['ID', 'Year_Birth', 'Education', 'Marital_Status', 'Income', 'Kidhome',
+       'Teenhome', 'Dt_Customer', 'Recency', 'MntWines', 'MntFruits',
+       'MntMeatProducts', 'MntFishProducts', 'MntSweetProducts',
+       'MntGoldProds', 'NumDealsPurchases', 'NumWebPurchases',
+       'NumCatalogPurchases', 'NumStorePurchases', 'NumWebVisitsMonth',
+       'AcceptedCmp3', 'AcceptedCmp4', 'AcceptedCmp5', 'AcceptedCmp1',
+       'AcceptedCmp2', 'Complain', 'Z_CostContact', 'Z_Revenue', 'Response'],
+      dtype='object')
+
+
+-- Should find out why activity drop
+
+-- risk by customer Recency
+
+✔ count which category appears most often in top 3
+✔ visualize top-3 categories using a bar or heatmap
+✔ cluster customers based on spending distribution
+
+✅ Evaluate the optimal number of clusters using elbow & silhouette score
+✅ Build visualizations (stacked bars, radar plots, heatmaps)
+✅ Label each customer with segment names
+✅ Produce a business-friendly summary of segments
+
+             MntWines   MntFruits  MntMeatProducts  MntFishProducts  MntSweetProducts  MntGoldProds
+Cluster_k
+0           85.246423    6.319555        33.937202         8.683625          6.270270     16.164547
+1          638.178667   44.093333       459.565333        78.413333         55.282667     48.328000
+2          578.180556   21.611111       153.083333        28.250000         19.730556     94.844444
+3          510.582996  107.902834       420.356275       135.862348        100.805668    105.291498
+              MntWines  MntFruits  MntMeatProducts  MntFishProducts  MntSweetProducts  MntGoldProds 
+Cluster_hc
+0           519.904444  78.777778       408.388889       115.677778         86.644444     94.004444 
+1           119.380159   7.560463        44.363505        10.908762          7.740768     19.488776 
+2           797.714286  38.314286       398.064286        48.821429         32.242857     35.539286 
+3           454.534884  17.813953       135.418605        25.325581         14.829457    150.713178 
+              MntWines   MntFruits  MntMeatProducts  MntFishProducts  MntSweetProducts  MntGoldProds
+Cluster_db
+-1          532.555556  100.333333       243.444444       103.888889        156.777778    191.666667
+ 0          303.645103   26.052561       163.304582        37.326595         26.594340     43.510782
+ 1           21.800000    4.200000      1652.200000         6.600000          2.200000      5.800000
+              MntWines  MntFruits  MntMeatProducts  MntFishProducts  MntSweetProducts  MntGoldProds
+Cluster_kr
+0           427.051429  14.032000        99.806857        20.468571         15.296000     42.905143
+1           104.402490  54.448133        87.112033        46.033195         39.518672     37.767635
+2           325.753606  37.645433       308.721154        57.576923         39.757212     48.343750
+3            37.527397   7.520548        30.092466        24.482877         15.873288     40.215753
