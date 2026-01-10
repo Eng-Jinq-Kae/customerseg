@@ -1,2 +1,3 @@
 # Ignore Excel files
 *.xlsx
+__pycache__/
