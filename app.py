@@ -10,7 +10,7 @@ def helptext():
                 1. If you are uploading Excel, this app only read one sheet with name Sheet1.
                 2. Upload button at the bottom.
                 3. If the uploaded is read correctly, you will able to see green success at the bottom.
-                4. Some columns you need to run this supermarket analysis.
+                4. Some columns you need to have in the dataset in order to run this supermarket analysis.
     ''')
     st.dataframe(df_ref_col, hide_index=True)
     st.divider()
