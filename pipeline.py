@@ -13,6 +13,8 @@ from datetime import date
 import matplotlib.cm as cm
 import matplotlib.patches as mpatches
 import dataloader as dl
+import streamlit as st
+import altair as alt
 
 os.system('cls')
 
@@ -22,15 +24,6 @@ df = dl.read_excel_file()
 # print(df)
 # print(df.columns)
 
-def add_customer_age(df):
-    current_year = date.today().year
-    df_year_birth = df['Year_Birth']
-    df['Age'] = current_year - df['Year_Birth']
-    return df
-
-# =========================
-# Income Analysis
-# =========================
 CORR_SALARY = 0
 if CORR_SALARY == 1:
     df_no_nan = df[df['Income'].notna()].copy()
@@ -72,7 +65,6 @@ if CORR_SALARY == 1:
         print(correlation_matrix)
     
     # impute by method 1, as each marital staus has a big gap, and overall no corr between age/edu to income
-
 def impute_missing_salary(df):
     df_no_nan = df[df['Income'].notna()].copy()
     impute_income_dict = (df_no_nan.groupby('Marital_Status')['Income'].mean()).round(0).astype(int).to_dict()
@@ -83,6 +75,14 @@ def impute_missing_salary(df):
     if len(rows_with_any_null) > 0:
         print("WARNING! Null data exists!")
     return df
+
+
+def add_customer_age(df):
+    current_year = date.today().year
+    df_year_birth = df['Year_Birth']
+    df['Age'] = current_year - df['Year_Birth']
+    return df
+
 
 # =========================
 # Demographics
@@ -97,8 +97,22 @@ if CUSTOMER_AGE == 1:
     # plt.show()
     plt.savefig(f"chart\\Histogram Customer Age.png", dpi=300, bbox_inches='tight')
     plt.clf()
+def chart_customer_age(df):
+    chart = (
+        alt.Chart(df)
+        .mark_bar()
+        .encode(
+            x=alt.X('Age:Q', bin=alt.Bin(maxbins=20), title='Age'),
+            y=alt.Y('count()', title='Number of Customers')
+        )
+        .properties(title='Customer Age Distribution')
+    )
+    st.altair_chart(chart, use_container_width=True)
 
 
+# =========================
+# Income Analysis
+# =========================
 def assign_income_level(row):
     if row["Income"] < row["p40"]:
         return "T3"
@@ -136,8 +150,6 @@ if CUSTOMER_AGE_INCOME == 1:
     # plt.show()
     plt.savefig(f"chart\\Bar Customer Income Level Age In.png", dpi=300, bbox_inches='tight')
     plt.clf()
-
-
     df_after_80 = df[df['Age'] > 80]
     percentiles = df_after_80.groupby('Age')['Income'].quantile([0.4, 0.8]).unstack()
     percentiles.columns = ['p40', 'p80']
@@ -166,6 +178,48 @@ if CUSTOMER_AGE_INCOME == 1:
     # plt.show()
     plt.savefig(f"chart\\Bar Customer Income Level Age Out.png", dpi=300, bbox_inches='tight')
     plt.clf()
+def chart_customer_income(df_use):
+    # df_use = df[df["Age"] <= 80]   # change to > 80 if needed
+    # Calculate percentiles per age
+    percentiles = (
+        df_use
+        .groupby("Age")["Income"]
+        .quantile([0.4, 0.8])
+        .unstack()
+        .reset_index()
+    )
+    percentiles.columns = ["Age", "p40", "p80"]
+    # Merge + classify
+    df_use = df_use.merge(percentiles, on="Age", how="left")
+    df_use["Income_Level"] = df_use.apply(assign_income_level, axis=1)
+    # Count customers
+    df_plot = (
+        df_use
+        .groupby(["Age", "Income_Level"])
+        .size()
+        .reset_index(name="Count")
+    )
+    chart = (
+        alt.Chart(df_plot)
+        .mark_bar()
+        .encode(
+            x=alt.X("Age:O", title="Age"),
+            y=alt.Y("Count:Q", title="Number of Customers", stack="zero"),
+            color=alt.Color(
+                "Income_Level:N",
+                scale=alt.Scale(
+                    domain=["T1", "T2", "T3"],
+                    range=["green", "orange", "blue"]
+                ),
+                legend=alt.Legend(title="Income Level")
+            )
+        )
+        .properties(
+            title="Customer Income Level Distribution by Age",
+            height=450
+        )
+    )
+    st.altair_chart(chart, use_container_width=True)
 
 
 # =========================
@@ -173,8 +227,8 @@ if CUSTOMER_AGE_INCOME == 1:
 # =========================
 CUSTOMER_PURCHASING = 0
 if CUSTOMER_PURCHASING == 1:
-    list_of_mnt = ['MntWines', 'MntFruits', 'MntMeatProducts', 'MntFishProducts', 'MntSweetProducts', 'MntGoldProds']
-
+    # list_of_mnt = ['MntWines', 'MntFruits', 'MntMeatProducts', 'MntFishProducts', 'MntSweetProducts', 'MntGoldProds']
+    list_of_mnt = [col for col in df.columns if col.startswith("Mnt")]
     for col in list_of_mnt:
         df_before_80 = df[df['Age'] <= 80]
         age_mnt_sum = df_before_80.groupby('Age')[col].sum()
@@ -189,7 +243,6 @@ if CUSTOMER_PURCHASING == 1:
         # plt.show()
         plt.savefig(f"chart\\Bar Customer Preference {col} Age In.png", dpi=300, bbox_inches='tight')
         plt.clf()
-    
     for col in list_of_mnt:
         df_after_80 = df[df['Age'] > 80]
         age_mnt_sum = df_after_80.groupby('Age')[col].sum()
@@ -204,9 +257,39 @@ if CUSTOMER_PURCHASING == 1:
         # plt.show()
         plt.savefig(f"chart\\Histogram Customer {col} Age Out.png", dpi=300, bbox_inches='tight')
         plt.clf()
+def chart_customer_purchasing(df_use):
+    list_of_mnt = [col for col in df_use.columns if col.startswith("Mnt")]
+    for col in list_of_mnt:
+        age_mnt_sum = (
+            df_use
+            .groupby("Age")[col]
+            .sum()
+            .reset_index()
+            .rename(columns={col: "Total"})
+        )
+        chart = (
+            alt.Chart(age_mnt_sum)
+            .mark_bar()
+            .encode(
+                x=alt.X("Age:O", title="Age"),
+                y=alt.Y("Total:Q", title=f"Total {col}"),
+                color=alt.Color(
+                    "Total:Q",
+                    scale=alt.Scale(scheme="blues"),
+                    legend=alt.Legend(title="Spending")
+                ),
+                tooltip=["Age", "Total"]
+            )
+            .properties(
+                title=f"{col} Spending by Age",
+                height=300
+            )
+        )
+        st.altair_chart(chart, use_container_width=True)
+
 
 # =========================
-# Membership & Recency
+# Membership
 # =========================
 MEMBER_YEAR = 0
 if MEMBER_YEAR == 1:
@@ -227,7 +310,7 @@ if MEMBER_YEAR == 1:
     plt.savefig("chart\\Bar Customer Quarterly Registration.png", dpi=300)
     plt.clf()
     plt.close()
-
+    # 2
     df_member_year = df
     # Extract year and quarter
     df_member_year['Year'] = df_member_year['Dt_Customer'].dt.year
@@ -267,9 +350,91 @@ if MEMBER_YEAR == 1:
     plt.savefig("chart\\Bar Customer Quarterly Activity.png", dpi=300)
     plt.clf()
     plt.close()
+def chart_customer_membership(df):
+    df_member_year = df
+    df_member_year['Year'] = df_member_year['Dt_Customer'].dt.year
+    df_member_year['Quarter'] = df_member_year['Dt_Customer'].dt.quarter
+    df_qtr = (
+        df_member_year
+        .groupby(['Year', 'Quarter'])
+        .size()
+        .reset_index(name='Count')
+    )
+    chart = (
+        alt.Chart(df_qtr)
+        .mark_bar()
+        .encode(
+            x=alt.X('Year:O', title='Year'),
+            y=alt.Y('Count:Q', title='Number of Members', stack='zero'),
+            color=alt.Color(
+                'Quarter:N',
+                scale=alt.Scale(
+                    domain=[1, 2, 3, 4],
+                    range=['#4C78A8', '#F58518', '#E45756', '#72B7B2']
+                ),
+                legend=alt.Legend(title='Quarter')
+            ),
+            tooltip=['Year', 'Quarter', 'Count']
+        )
+        .properties(
+            title='Customer Count by Year and Quarter',
+            height=400
+        )
+    )
+    st.altair_chart(chart, use_container_width=True)
+    # 2
+    df_member_year['Year'] = df_member_year['Dt_Customer'].dt.year
+    df_member_year['Quarter'] = df_member_year['Dt_Customer'].dt.quarter
+
+    list_member_activity_num = [
+        'NumDealsPurchases', 'NumWebPurchases',
+        'NumCatalogPurchases', 'NumStorePurchases', 'NumWebVisitsMonth'
+    ]
+    df_member_activity = df_member_year[list_member_activity_num + ['Year', 'Quarter']]
+    df_qtr = (
+        df_member_activity
+        .groupby(['Year', 'Quarter'])
+        .sum()
+        .reset_index()
+    )
+    df_qtr['Year_Quarter'] = (
+        df_qtr['Year'].astype(str) + '-Q' + df_qtr['Quarter'].astype(str)
+    )
+    df_long = df_qtr.melt(
+        id_vars=['Year_Quarter'],
+        value_vars=list_member_activity_num,
+        var_name='Activity',
+        value_name='Count'
+    )
+    chart = (
+        alt.Chart(df_long)
+        .mark_bar()
+        .encode(
+            x=alt.X('Year_Quarter:O', title='Year - Quarter'),
+            y=alt.Y('Count:Q', title='Total Activity', stack='zero'),
+            color=alt.Color(
+                'Activity:N',
+                scale=alt.Scale(
+                    domain=list_member_activity_num,
+                    range=[
+                        '#1f77b4', '#ff7f0e',
+                        '#2ca02c', '#d62728', '#9467bd'
+                    ]
+                ),
+                legend=alt.Legend(title='Activity Type')
+            ),
+            tooltip=['Year_Quarter', 'Activity', 'Count']
+        )
+        .properties(
+            title='Customer Activity by Year and Quarter',
+            height=450
+        )
+    )
+    st.altair_chart(chart, use_container_width=True)
+
 
 # =========================
-# Membership & Recency
+# Recency
 # =========================
 MEMBER_RECENCY = 0
 if MEMBER_RECENCY == 1:
@@ -294,8 +459,6 @@ if MEMBER_RECENCY == 1:
     plt.savefig(f"chart\\Bar Customer Average Recency Age In.png", dpi=300, bbox_inches='tight')
     plt.clf()
     plt.close()
-
-
     # Group recency by age
     age_groups = df_before_80.groupby('Age')['Recency']
     # List of ages (sorted)
@@ -329,8 +492,7 @@ if MEMBER_RECENCY == 1:
     plt.savefig(f"chart\\Box-Plot Customer Average Recency Age In.png", dpi=300, bbox_inches='tight')
     plt.clf()
     plt.close()
-
-
+    # 2
     df_after_80 = df[df['Age'] > 80]
     age_recent_avg = df_after_80.groupby('Age')['Recency'].mean()
     values = age_recent_avg
@@ -351,8 +513,6 @@ if MEMBER_RECENCY == 1:
     plt.savefig(f"chart\\Bar Customer Average Recency Age Out.png", dpi=300, bbox_inches='tight')
     plt.clf()
     plt.close()
-
-
     # Group recency by age
     age_groups = df_after_80.groupby('Age')['Recency']
     # List of ages (sorted)
@@ -386,6 +546,96 @@ if MEMBER_RECENCY == 1:
     plt.savefig(f"chart\\Box-Plot Customer Average Recency Age Out.png", dpi=300, bbox_inches='tight')
     plt.clf()
     plt.close()
+def chart_customer_recency(df_use):
+    df_plot = (
+        df_use
+        .groupby('Age')['Recency']
+        .mean()
+        .reset_index(name='Avg_Recency')
+    )
+    chart = (
+        alt.Chart(df_plot)
+        .mark_bar()
+        .encode(
+            x=alt.X(
+                'Age:O',
+                title='Age',
+                axis=alt.Axis(labelAngle=0)
+            ),
+            y=alt.Y(
+                'Avg_Recency:Q',
+                title='Average Recency (Days Since Last Purchase)'
+            ),
+            color=alt.Color(
+                'Avg_Recency:Q',
+                scale=alt.Scale(scheme='blues'),
+                legend=alt.Legend(title='Avg Recency')
+            ),
+            tooltip=[
+                alt.Tooltip('Age:O', title='Age'),
+                alt.Tooltip('Avg_Recency:Q', title='Avg Recency', format='.0f')
+            ]
+        )
+        .properties(
+            title='Customer Average Recency Distribution (Age ≤ 80)',
+            height=420
+        )
+    )
+    labels = chart.mark_text(
+        dy=-5,
+        size=10
+    ).encode(
+        text=alt.Text('Avg_Recency:Q', format='.0f')
+    )
+    st.altair_chart(chart + labels, use_container_width=True)
+    # 2
+    # Compute mean recency per age (for coloring)
+    df_mean = (
+        df_use
+        .groupby('Age')['Recency']
+        .mean()
+        .reset_index(name='Mean_Recency')
+    )
+    # Merge mean back to original data
+    df_plot = df_use.merge(df_mean, on='Age', how='left')
+    chart = (
+        alt.Chart(df_plot)
+        .mark_boxplot(size=20)
+        .encode(
+            x=alt.X(
+                'Age:O',
+                title='Age',
+                axis=alt.Axis(labelAngle=0)
+            ),
+            y=alt.Y(
+                'Recency:Q',
+                title='Recency (Days Since Last Purchase)'
+            ),
+            color=alt.Color(
+                'Mean_Recency:Q',
+                scale=alt.Scale(scheme='blues'),
+                legend=alt.Legend(title='Avg Recency')
+            ),
+            tooltip=[
+                alt.Tooltip('Age:O', title='Age'),
+                alt.Tooltip('Mean_Recency:Q', title='Avg Recency', format='.0f'),
+                alt.Tooltip('Recency:Q', title='Recency')
+            ]
+        )
+        .properties(
+            title='Recency Distribution by Age (Color = Average Recency)',
+            height=450
+        )
+    )
+    chart = chart.encode(
+        x=alt.X(
+            'Age:O',
+            axis=alt.Axis(
+                labelExpr="datum.value % 5 === 0 ? datum.value : ''"
+            )
+        )
+    )
+    st.altair_chart(chart, use_container_width=True)
 
 
 # =========================
@@ -443,6 +693,39 @@ if CUSTOMER_PREFERENCE == 1:
     df['Cluster_kr'] = kmeans.fit_predict(X_scaled)
     cluster_profile_kr = df.groupby('Cluster_kr')[spend_cols].mean()
     print(cluster_profile_kr)
+
+def st_describe(df_inp):
+    df = df_inp
+    st.subheader("Demographics")
+    df = impute_missing_salary(df)
+    df = add_customer_age(df)
+    chart_customer_age(df)
+    st.divider()
+
+    st.subheader("Income analysis")
+    df_use = df[df["Age"] <= 80]
+    chart_customer_income(df_use)
+    df_use = df[df["Age"] > 80]
+    chart_customer_income(df_use)
+    st.divider()
+
+    st.subheader("Purchasing analysis")
+    df_use = df[df["Age"] <= 80]
+    chart_customer_purchasing(df_use)
+    df_use = df[df["Age"] > 80]
+    chart_customer_purchasing(df_use)
+    st.divider()
+
+    st.subheader("Customer membership & activity")
+    chart_customer_membership(df)
+    st.divider()
+
+    st.subheader("Customer recency")
+    df_use = df[df["Age"] <= 80]
+    chart_customer_recency(df_use)
+    df_use = df[df["Age"] > 80]
+    chart_customer_recency(df_use)
+    st.divider()
 
 
 if __name__ == "__main__":
