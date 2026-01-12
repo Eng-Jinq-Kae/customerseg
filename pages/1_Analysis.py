@@ -1,6 +1,7 @@
 import streamlit as st
 import dataloader as dl
 import pipeline as pipeline
+import pandas as pd
 
 st.title("📊 Customer Analytics Dashboard")
 if 'file_upload' not in st.session_state or st.session_state.file_upload is None:
@@ -34,6 +35,7 @@ with tab1:
     st.subheader("Demographics")
     df = pipeline.add_customer_age(df)
     pipeline.chart_customer_age(df)
+    st.write("As customer age >80 is considered a small group data, they should be observed seperately")
     st.divider()
 
 # =========================
@@ -42,29 +44,51 @@ with tab1:
 with tab2:
     st.subheader("Income by Marital Status")
     pipeline.chart_customer_income_marital(df)
-    st.subheader("Income Tier Distribution by Age (≤80)")
-    df_use = df[df["Age"] <= 80]
-    pipeline.chart_customer_income(df_use)
-    st.subheader("Income Tier Distribution by Age (>80)")
-    df_use = df[df["Age"] > 80]
-    pipeline.chart_customer_income(df_use)
+    st.write("Target those age has more T1 proportion")
+    with st.expander("By Age (≤80)"):
+        st.subheader("Income Tier Distribution by Age (≤80)")
+        df_use = df[df["Age"] <= 80]
+        pipeline.chart_customer_income(df_use)
+    with st.expander("By Age (>80)"):
+        st.subheader("Income Tier Distribution by Age (>80)")
+        df_use = df[df["Age"] > 80]
+        pipeline.chart_customer_income(df_use)
     st.divider()
 
 # =========================
 # Purchasing Analysis
 # =========================
 with tab3:
+    st.write("In different products, target the age group has more spending, understand why.")
     st.subheader("Purchasing analysis")
-    df_use = df[df["Age"] <= 80]
-    pipeline.chart_customer_purchasing(df_use)
-    df_use = df[df["Age"] > 80]
-    pipeline.chart_customer_purchasing(df_use)
+    df_use_less_80 = df[df["Age"] <= 80]
+    df_spend_less_80 = pipeline.customer_spend_category(df_use_less_80)
+    df_spend_less_80 = df_spend_less_80.rename(columns={"Average_Spend":"Average_Spend_≤80 ($)"})
+    df_use_more_80 = df[df["Age"] > 80]
+    df_spend_more_80 = pipeline.customer_spend_category(df_use_more_80)
+    df_spend_more_80 = df_spend_more_80.rename(columns={"Average_Spend":"Average_Spend_>80 ($)"})
+    df_avg_spend = pd.merge(
+        df_spend_less_80, df_spend_more_80, on=['Category']
+    )
+    last_two_cols = df_avg_spend.columns[-2:]
+    st.dataframe(
+        df_avg_spend.style.format(
+            {col: "{:.0f}" for col in last_two_cols}
+        ),
+        hide_index=True
+    )
+    st.write("There are many evidence show that the potential strategic customer is high age group.")
+    with st.expander("By Age (≤80)"):
+        pipeline.chart_customer_purchasing(df_use_less_80)
+    with st.expander("By Age (>80)"):
+        pipeline.chart_customer_purchasing(df_use_more_80)
     st.divider()
 
 # =========================
 # Membership
 # =========================
 with tab4:
+    st.write("Observe customer active year and preference channel.")
     st.subheader("Customer membership & activity")
     pipeline.chart_customer_membership(df)
     st.divider()
@@ -73,11 +97,16 @@ with tab4:
 # Recency
 # =========================
 with tab5:
+    st.write("The colour density by bar and box-plot are the same.")
+    st.write("The darker, the age group more recency.")
+    st.write("The average is then support by box-plot")
     st.subheader("Customer recency")
-    df_use = df[df["Age"] <= 80]
-    pipeline.chart_customer_recency(df_use)
-    df_use = df[df["Age"] > 80]
-    pipeline.chart_customer_recency(df_use)
+    with st.expander("By Age (≤80)"):
+        df_use = df[df["Age"] <= 80]
+        pipeline.chart_customer_recency(df_use)
+    with st.expander("By Age (>80)"):
+        df_use = df[df["Age"] > 80]
+        pipeline.chart_customer_recency(df_use)
     st.divider()
 
 # =========================
