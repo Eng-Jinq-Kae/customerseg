@@ -40,9 +40,12 @@ with tab1:
 # Income Analysis
 # =========================
 with tab2:
-    st.subheader("Income analysis")
+    st.subheader("Income by Marital Status")
+    pipeline.chart_customer_income_marital(df)
+    st.subheader("Income Tier Distribution by Age (≤80)")
     df_use = df[df["Age"] <= 80]
     pipeline.chart_customer_income(df_use)
+    st.subheader("Income Tier Distribution by Age (>80)")
     df_use = df[df["Age"] > 80]
     pipeline.chart_customer_income(df_use)
     st.divider()
@@ -76,5 +79,13 @@ with tab5:
     df_use = df[df["Age"] > 80]
     pipeline.chart_customer_recency(df_use)
     st.divider()
+
+# =========================
+# Segmentation
+# by Aqilah
+# =========================
+with tab6:
+    st.subheader("Customer Preference Clustering")
+    pipeline.chart_customer_segmentation(df)
 
 st.success("Analysis page laoded full successfully.")
