@@ -18,7 +18,11 @@ import altair as alt
 
 os.system('cls')
 
-df = dl.read_excel_file()
+DEBUG_PIPELINE = 0
+if DEBUG_PIPELINE:
+    df = dl.read_excel_file()
+else:
+    df = None
 # df['Dt_Customer'] = pd.to_datetime(df['Dt_Customer'], dayfirst=True)
 
 # print(df)
