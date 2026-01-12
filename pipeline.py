@@ -114,7 +114,7 @@ def chart_customer_age(df):
         )
         .properties(title='Customer Age Distribution')
     )
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width='stretch')
 
 
 # =========================
@@ -134,7 +134,7 @@ def chart_customer_income_marital(df):
         y="Income",
         title="Average Income by Marital Status"
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 
 def assign_income_level(row):
@@ -243,7 +243,7 @@ def chart_customer_income(df_use):
             height=450
         )
     )
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width='stretch')
 
 
 # =========================
@@ -281,6 +281,13 @@ if CUSTOMER_PURCHASING == 1:
         # plt.show()
         plt.savefig(f"chart\\Histogram Customer {col} Age Out.png", dpi=300, bbox_inches='tight')
         plt.clf()
+def customer_spend_category(df_use):
+    list_of_mnt = [col for col in df_use.columns if col.startswith("Mnt")]
+    avg_values = df_use[list_of_mnt].mean()
+    df_avg = avg_values.reset_index()
+    df_avg.columns = ["Category", "Average_Spend"]
+    return df_avg
+
 def chart_customer_purchasing(df_use):
     list_of_mnt = [col for col in df_use.columns if col.startswith("Mnt")]
     for col in list_of_mnt:
@@ -309,7 +316,7 @@ def chart_customer_purchasing(df_use):
                 height=300
             )
         )
-        st.altair_chart(chart, use_container_width=True)
+        st.altair_chart(chart, width='stretch')
 
 
 # =========================
@@ -405,7 +412,7 @@ def chart_customer_membership(df):
             height=400
         )
     )
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width='stretch')
     # 2
     df_member_year['Year'] = df_member_year['Dt_Customer'].dt.year
     df_member_year['Quarter'] = df_member_year['Dt_Customer'].dt.quarter
@@ -454,7 +461,7 @@ def chart_customer_membership(df):
             height=450
         )
     )
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width='stretch')
 
 
 # =========================
@@ -601,7 +608,7 @@ def chart_customer_recency(df_use):
             ]
         )
         .properties(
-            title='Customer Average Recency Distribution (Age ≤ 80)',
+            title='Customer Average Recency Distribution',
             height=420
         )
     )
@@ -611,7 +618,7 @@ def chart_customer_recency(df_use):
     ).encode(
         text=alt.Text('Avg_Recency:Q', format='.0f')
     )
-    st.altair_chart(chart + labels, use_container_width=True)
+    st.altair_chart(chart + labels, width='stretch')
     # 2
     # Compute mean recency per age (for coloring)
     df_mean = (
@@ -659,7 +666,7 @@ def chart_customer_recency(df_use):
             )
         )
     )
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width='stretch')
 
 
 # =========================
@@ -722,6 +729,54 @@ if CUSTOMER_PREFERENCE == 1:
 # Segmentation
 # by Aqilah
 # =========================
+def clustring_k_means(df_clustering, scaler, spend_cols, model, method):
+    # -------------------------
+    # K-Means Visualization (NO PCA)
+    # -------------------------
+    st.markdown("### 📈 K-Means Cluster Visualization")
+    with st.expander("Some recommendations:"):
+        st.text("As the recommendation is two clusters, hence the user can see which two category item is higher preference then put near together.")
+        st.text("For example: X-Wine with Y-Meat, supermakerket can put them near together.")
+        st.text("For example: X-Fruits with Y-Fish or Y-Sweet, there is a significant proportional line at low price, can do package promotion..")
+        st.text("For example: X-Meat has no difference pattern with other Y, meaning meat is a general item.")
+
+    colx, coly = st.columns(2)
+    with colx:
+        x_axis = st.selectbox("X-axis Variable", spend_cols, index=0)
+    with coly:
+        y_axis = st.selectbox("Y-axis Variable", spend_cols, index=2)
+
+    plot_df = df_clustering.copy()
+    
+    # Centroids (inverse scaled)
+    centroids = scaler.inverse_transform(model.cluster_centers_)
+    centroids_df = pd.DataFrame(centroids, columns=spend_cols)
+
+    fig = px.scatter(
+        plot_df,
+        x=x_axis,
+        y=y_axis,
+        color="Cluster",
+        hover_data=spend_cols,
+        title=f"K-Means Clusters: {x_axis} vs {y_axis}"
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=centroids_df[x_axis],
+            y=centroids_df[y_axis],
+            mode="markers",
+            marker=dict(size=16, symbol="x", color="black"),
+            name="Centroids"
+        )
+    )
+
+    st.plotly_chart(fig, width='stretch')
+
+    st.caption(
+        "Clusters are computed using all spending variables. "
+        "Chart shows a 2D projection of the original feature space."
+    )
 def chart_customer_segmentation(df):
     spend_cols = [
         'MntWines','MntFruits','MntMeatProducts',
@@ -751,15 +806,18 @@ def chart_customer_segmentation(df):
     col1, col2 = st.columns(2)
     with col1:
         fig = px.line(eval_df, x="K", y="WSS", title="Elbow Method")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
     with col2:
         fig = px.line(eval_df, x="K", y="Silhouette", title="Silhouette Score")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
     st.success(f"✅ Recommended number of clusters: K = {best_k}")
+    st.divider()
 
     # -------------------------
     # Clustering Method
     # -------------------------
+    st.subheader("Clustering method")
+    st.info("Cluster visualization is available for K-Means only.")
     method = st.selectbox(
         "Clustering Method",
         ["KMeans", "Hierarchical", "DBSCAN"]
@@ -768,6 +826,7 @@ def chart_customer_segmentation(df):
         k = st.slider("Number of Clusters", 2, 8, best_k)
         model = KMeans(n_clusters=k, random_state=42)
         df['Cluster'] = model.fit_predict(X_scaled)
+        clustring_k_means(df, scaler, spend_cols, model, method)
     elif method == "Hierarchical":
         k = st.slider("Number of Clusters", 2, 8, best_k)
         model = AgglomerativeClustering(n_clusters=k)
@@ -778,58 +837,12 @@ def chart_customer_segmentation(df):
         df['Cluster'] = model.fit_predict(X_scaled)
 
     # -------------------------
-    # K-Means Visualization (NO PCA)
-    # -------------------------
-    st.markdown("### 📈 K-Means Cluster Visualization")
-    if method != "KMeans":
-        st.info("Cluster visualization is available for K-Means only.")
-    else:
-        colx, coly = st.columns(2)
-
-        with colx:
-            x_axis = st.selectbox("X-axis Variable", spend_cols, index=0)
-
-        with coly:
-            y_axis = st.selectbox("Y-axis Variable", spend_cols, index=2)
-
-        plot_df = df.copy()
-
-        # Centroids (inverse scaled)
-        centroids = scaler.inverse_transform(model.cluster_centers_)
-        centroids_df = pd.DataFrame(centroids, columns=spend_cols)
-
-        fig = px.scatter(
-            plot_df,
-            x=x_axis,
-            y=y_axis,
-            color="Cluster",
-            hover_data=spend_cols,
-            title=f"K-Means Clusters: {x_axis} vs {y_axis}"
-        )
-
-        fig.add_trace(
-            go.Scatter(
-                x=centroids_df[x_axis],
-                y=centroids_df[y_axis],
-                mode="markers",
-                marker=dict(size=16, symbol="x", color="black"),
-                name="Centroids"
-            )
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
-
-        st.caption(
-            "Clusters are computed using all spending variables. "
-            "Chart shows a 2D projection of the original feature space."
-        )
-
-    # -------------------------
     # Cluster Profile
     # -------------------------
     st.subheader("Cluster Spending Profile")
     profile = df.groupby("Cluster")[spend_cols].mean()
     st.dataframe(profile.style.background_gradient(cmap="Blues"))
+
 
 def st_describe(df_inp):
     df = df_inp
