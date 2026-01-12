@@ -839,7 +839,7 @@ def chart_customer_segmentation(df):
     # -------------------------
     # Cluster Profile
     # -------------------------
-    st.subheader("Cluster Spending Profile")
+    st.subheader(f"{method} - Cluster Spending Profile")
     profile = df.groupby("Cluster")[spend_cols].mean()
     st.dataframe(profile.style.background_gradient(cmap="Blues"))
 
