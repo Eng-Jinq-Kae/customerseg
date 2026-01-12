@@ -57,5 +57,5 @@ if __name__ == "__main__":
 
         else:
             st.warning("Column mismatch, please col guideline above.")
-            st.write(f"Missing {error_msg}")
+            st.write(f"Error: {error_msg}")
             st.stop()
