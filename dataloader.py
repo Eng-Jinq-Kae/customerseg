@@ -23,8 +23,35 @@ def ref_col_dataset():
     ).reset_index(names="Category")
     return df_ref_col
 
+def check_col_df(df):
+    valid_df = True
+    error_msg = None
+    cols_df = df.columns
+    if 'ID' not in cols_df:
+        valid_df = False
+        error_msg = 'Missing ID'
+        return valid_df, error_msg
+    if 'Year_Birth' not in cols_df:
+        valid_df = False
+        error_msg = 'Missing Year_Birth'
+        return valid_df, error_msg
+    if 'Income' not in cols_df:
+        valid_df = False
+        error_msg = 'Missing Income'
+        return valid_df, error_msg
+    if 'Dt_Customer' not in cols_df:
+        valid_df = False
+        error_msg = 'Missing Dt_Customer'
+        return valid_df, error_msg
+    mnt_cols = [c for c in df.columns if c.startswith("Mnt")]
+    if len(mnt_cols) == 0:
+        valid_df = False
+        error_msg = 'Missing Mnt'
+        return valid_df, error_msg
+    return valid_df, error_msg
 
-def read_excel_preprocess(df):
+
+def read_df_preprocess(df):
     df['Dt_Customer'] = pd.to_datetime(df['Dt_Customer'], dayfirst=True)
     return df
 
@@ -39,6 +66,9 @@ def read_excel_file():
         if not xlsx_files:
             raise FileNotFoundError("No .xlsx files found in directory")
         # read the first xlsx file using Sheet1
-        df = pd.read_excel(xlsx_files[0], sheet_name='Sheet1')
-    df = read_excel_preprocess(df)
+        try:
+            df = pd.read_excel(xlsx_files[0], sheet_name="marketing")
+        except:
+            df = pd.read_excel(xlsx_files[0], sheet_name="Sheet1")
+    df = read_df_preprocess(df)
     return df
