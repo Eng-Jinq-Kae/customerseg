@@ -15,6 +15,9 @@ import matplotlib.patches as mpatches
 import dataloader as dl
 import streamlit as st
 import altair as alt
+import plotly.express as px
+from sklearn.metrics import silhouette_score
+import plotly.graph_objects as go
 
 os.system('cls')
 
@@ -117,6 +120,23 @@ def chart_customer_age(df):
 # =========================
 # Income Analysis
 # =========================
+def chart_customer_income_marital(df):
+    income_marital = (
+        df.groupby("Marital_Status")['Income']
+        .mean()
+        .reset_index()
+        .sort_values("Income")
+    )
+
+    fig = px.bar(
+        income_marital,
+        x="Marital_Status",
+        y="Income",
+        title="Average Income by Marital Status"
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
 def assign_income_level(row):
     if row["Income"] < row["p40"]:
         return "T3"
@@ -697,6 +717,119 @@ if CUSTOMER_PREFERENCE == 1:
     df['Cluster_kr'] = kmeans.fit_predict(X_scaled)
     cluster_profile_kr = df.groupby('Cluster_kr')[spend_cols].mean()
     print(cluster_profile_kr)
+
+# =========================
+# Segmentation
+# by Aqilah
+# =========================
+def chart_customer_segmentation(df):
+    spend_cols = [
+        'MntWines','MntFruits','MntMeatProducts',
+        'MntFishProducts','MntSweetProducts','MntGoldProds'
+    ]
+    X = df[spend_cols]
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # -------------------------
+    # Elbow & Silhouette
+    # -------------------------
+    k_range = range(2, 9)
+    wss, sil = [], []
+    for k in k_range:
+        km = KMeans(n_clusters=k, random_state=42)
+        labels = km.fit_predict(X_scaled)
+        wss.append(km.inertia_)
+        sil.append(silhouette_score(X_scaled, labels))
+    eval_df = pd.DataFrame({
+        "K": list(k_range),
+        "WSS": wss,
+        "Silhouette": sil
+    })
+    best_k = int(eval_df.loc[eval_df['Silhouette'].idxmax(), 'K'])
+
+    col1, col2 = st.columns(2)
+    with col1:
+        fig = px.line(eval_df, x="K", y="WSS", title="Elbow Method")
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        fig = px.line(eval_df, x="K", y="Silhouette", title="Silhouette Score")
+        st.plotly_chart(fig, use_container_width=True)
+    st.success(f"✅ Recommended number of clusters: K = {best_k}")
+
+    # -------------------------
+    # Clustering Method
+    # -------------------------
+    method = st.selectbox(
+        "Clustering Method",
+        ["KMeans", "Hierarchical", "DBSCAN"]
+    )
+    if method == "KMeans":
+        k = st.slider("Number of Clusters", 2, 8, best_k)
+        model = KMeans(n_clusters=k, random_state=42)
+        df['Cluster'] = model.fit_predict(X_scaled)
+    elif method == "Hierarchical":
+        k = st.slider("Number of Clusters", 2, 8, best_k)
+        model = AgglomerativeClustering(n_clusters=k)
+        df['Cluster'] = model.fit_predict(X_scaled)
+    else:
+        eps = st.slider("EPS", 0.5, 3.0, 2.0)
+        model = DBSCAN(eps=eps, min_samples=5)
+        df['Cluster'] = model.fit_predict(X_scaled)
+
+    # -------------------------
+    # K-Means Visualization (NO PCA)
+    # -------------------------
+    st.markdown("### 📈 K-Means Cluster Visualization")
+    if method != "KMeans":
+        st.info("Cluster visualization is available for K-Means only.")
+    else:
+        colx, coly = st.columns(2)
+
+        with colx:
+            x_axis = st.selectbox("X-axis Variable", spend_cols, index=0)
+
+        with coly:
+            y_axis = st.selectbox("Y-axis Variable", spend_cols, index=2)
+
+        plot_df = df.copy()
+
+        # Centroids (inverse scaled)
+        centroids = scaler.inverse_transform(model.cluster_centers_)
+        centroids_df = pd.DataFrame(centroids, columns=spend_cols)
+
+        fig = px.scatter(
+            plot_df,
+            x=x_axis,
+            y=y_axis,
+            color="Cluster",
+            hover_data=spend_cols,
+            title=f"K-Means Clusters: {x_axis} vs {y_axis}"
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=centroids_df[x_axis],
+                y=centroids_df[y_axis],
+                mode="markers",
+                marker=dict(size=16, symbol="x", color="black"),
+                name="Centroids"
+            )
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.caption(
+            "Clusters are computed using all spending variables. "
+            "Chart shows a 2D projection of the original feature space."
+        )
+
+    # -------------------------
+    # Cluster Profile
+    # -------------------------
+    st.subheader("Cluster Spending Profile")
+    profile = df.groupby("Cluster")[spend_cols].mean()
+    st.dataframe(profile.style.background_gradient(cmap="Blues"))
 
 def st_describe(df_inp):
     df = df_inp
